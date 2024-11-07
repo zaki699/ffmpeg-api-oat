@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(YourProjectName)
+project(Analyzer)
 
 # Specify C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -7,8 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 # Include FetchContent module
 include(FetchContent)
 
-# Set install directories
-set(INSTALL_DIR "/usr/local/YourProject")
+# Set installation directories
+set(INSTALL_DIR "/usr/local/testoat")
 set(CONFIG_DIR "${CMAKE_SOURCE_DIR}/config")
 set(LOG_DIR "${CMAKE_SOURCE_DIR}/logs")
 
@@ -17,98 +17,111 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Fetching required dependencies
-FetchContent_Declare(
-        oatpp
-        GIT_REPOSITORY https://github.com/oatpp/oatpp.git
-        GIT_TAG 1.3.0-latest
-)
-FetchContent_MakeAvailable(oatpp)
+# Find SQLite3 dependency
+find_package(SQLite3 REQUIRED)
+include_directories(${SQLite3_INCLUDE_DIRS})
 
-FetchContent_Declare(
-        oatpp_sqlite
-        GIT_REPOSITORY https://github.com/oatpp/oatpp-sqlite.git
-        GIT_TAG 1.3.0-latest
-)
-FetchContent_MakeAvailable(oatpp_sqlite)
+# Manually add the path to the CMake config files
+set(CMAKE_PREFIX_PATH "/usr/local/oatpp/lib/cmake")
 
-FetchContent_Declare(
-        oatpp_swagger
-        GIT_REPOSITORY https://github.com/oatpp/oatpp-swagger.git
-        GIT_TAG 1.3.0-latest
-)
-FetchContent_MakeAvailable(oatpp_swagger)
+# Attempt to find and include the oatpp packages
+find_package(oatpp 1.3.0 REQUIRED)
+find_package(oatpp-sqlite 1.3.0 REQUIRED)
+find_package(oatpp-swagger 1.3.0 REQUIRED)
 
-FetchContent_Declare(
-        json
-        GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG v3.10.5
-)
-FetchContent_MakeAvailable(json)
 
-FetchContent_Declare(
-        aws-sdk-cpp
-        GIT_REPOSITORY https://github.com/aws/aws-sdk-cpp.git
-        GIT_TAG 1.9.100
-)
-FetchContent_MakeAvailable(aws-sdk-cpp)
 
-# Include directories for headers
-include_directories(include)
+# Fetch nlohmann/json if not found
+find_package(nlohmann_json CONFIG QUIET)
+find_package(AWSSDK REQUIRED COMPONENTS s3)
+
+if(CMAKE_SYSTEM_NAME MATCHES Linux)
+    find_package(Threads REQUIRED)
+    target_link_libraries(crud-lib INTERFACE Threads::Threads ${CMAKE_DL_LIBS})
+endif()
 
 # Collecting source files
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 file(GLOB_RECURSE HEADERS "src/*.hpp")
 
+include_directories(
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/controllers
+        ${CMAKE_SOURCE_DIR}/src/interfaces
+        ${CMAKE_SOURCE_DIR}/src/dto
+        ${CMAKE_SOURCE_DIR}/src/providers
+        ${CMAKE_SOURCE_DIR}/src/encoding
+        ${CMAKE_SOURCE_DIR}/src/managers
+        ${CMAKE_SOURCE_DIR}/src/models
+        ${CMAKE_SOURCE_DIR}/src/utils
+)
+
 # Add executable
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
-# Link libraries to the project
-target_link_libraries(${PROJECT_NAME}
-        oatpp::oatpp
-        oatpp::oatpp-sqlite
-        oatpp::oatpp-swagger
-        nlohmann_json::nlohmann_json
-        AWS::aws-sdk-cpp
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/controllers
+        ${CMAKE_SOURCE_DIR}/src/interfaces
+        ${CMAKE_SOURCE_DIR}/src/providers
+        ${CMAKE_SOURCE_DIR}/src/dto
+        ${CMAKE_SOURCE_DIR}/src/encoding
+        ${CMAKE_SOURCE_DIR}/src/managers
+        ${CMAKE_SOURCE_DIR}/src/models
+        ${CMAKE_SOURCE_DIR}/src/utils
 )
 
-# Enable logging (example configuration)
-target_compile_definitions(${PROJECT_NAME} PUBLIC OATPP_COMPAT_BUILD_NO_STD_ATOMIC)
-add_compile_definitions(LOG_DIR="${LOG_DIR}")
-add_compile_definitions(CONFIG_DIR="${CONFIG_DIR}")
+# Link libraries to the project
+target_link_libraries(${PROJECT_NAME}
+        # Oat++
+        PUBLIC oatpp::oatpp
+        PUBLIC oatpp::oatpp-swagger
+        PUBLIC oatpp::oatpp-sqlite
+        nlohmann_json
+        aws-sdk-cpp
+        ${SQLite3_LIBRARIES}  # Link SQLite3 library
+)
 
-# Logging setup for production
+# Add configuration and log directories as compile definitions
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        CONFIG_DIR="${CONFIG_DIR}"
+        LOG_DIR="${LOG_DIR}"
+)
+
+# Setting production logging levels and compiler optimizations for release builds
 set(LOGGING_LEVEL "INFO" CACHE STRING "Set logging level for production (DEBUG, INFO, WARN, ERROR)")
+if(CMAKE_BUILD_TYPE MATCHES Release)
+    message("Configuring production build with optimizations.")
+    target_compile_options(${PROJECT_NAME} PRIVATE -O3)
+endif()
+
+# Ensure log and configuration directories exist
+file(MAKE_DIRECTORY ${LOG_DIR})
+file(MAKE_DIRECTORY ${CONFIG_DIR})
+
+# Configure the configuration file for deployment
+configure_file(${CONFIG_DIR}/config.json ${CMAKE_BINARY_DIR}/config/config.json COPYONLY)
+install(FILES ${CMAKE_BINARY_DIR}/config/config.json DESTINATION ${INSTALL_DIR}/config)
 
 # Installation rules
 install(TARGETS ${PROJECT_NAME} DESTINATION ${INSTALL_DIR}/bin)
 install(DIRECTORY ${CONFIG_DIR} DESTINATION ${INSTALL_DIR}/config)
 install(DIRECTORY ${LOG_DIR} DESTINATION ${INSTALL_DIR}/logs)
 
-# Define custom log file location
-if(NOT EXISTS ${LOG_DIR})
-    file(MAKE_DIRECTORY ${LOG_DIR})
-endif()
-
-# Define a configuration file setup (example config)
-configure_file(${CONFIG_DIR}/app_config.json ${INSTALL_DIR}/config/app_config.json COPYONLY)
-
-# Define compiler flags for optimization in production
-if(CMAKE_BUILD_TYPE MATCHES Release)
-    message("Configuring production build with optimizations.")
-    target_compile_options(${PROJECT_NAME} PRIVATE -O3)
-endif()
-
-# Additional configurations if needed
+# Additional AWS SDK configurations for S3 only
 set(AWSSDK_CMAKE_CONFIG_DIR ${aws-sdk-cpp_SOURCE_DIR}/cmake)
-set(AWSSDK_ENABLE_S3 ON)
-set(BUILD_ONLY "s3")
 list(APPEND CMAKE_PREFIX_PATH "${AWSSDK_CMAKE_CONFIG_DIR}")
 
-# Display summary of build configuration
-message("Project configured with the following settings:")
-message("  - Install directory: ${INSTALL_DIR}")
-message("  - Configuration directory: ${CONFIG_DIR}")
-message("  - Log directory: ${LOG_DIR}")
-message("  - Build type: ${CMAKE_BUILD_TYPE}")
-message("  - Logging level: ${LOGGING_LEVEL}")
+# Display build configuration summary
+message(STATUS "Project configured with the following settings:")
+message(STATUS "  - Install directory: ${INSTALL_DIR}")
+message(STATUS "  - Configuration directory: ${CONFIG_DIR}")
+message(STATUS "  - Log directory: ${LOG_DIR}")
+message(STATUS "  - Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  - Logging level: ${LOGGING_LEVEL}")
+
+# Custom command for build completion message
+add_custom_command(TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Build completed. Configuration and logs are set up in ${INSTALL_DIR}"
+)

@@ -1,0 +1,44 @@
+{
+  "ffmpeg": {
+    "max_processes": 4,
+    "max_retries": 3,
+    "retry_delay_seconds": 5,
+    "default_options": [
+      "-preset", "fast",
+      "-crf", "23",
+      "-movflags", "+faststart"
+    ]
+  },
+  "aws": {
+    "s3": {
+      "bucket_name": "your-s3-bucket-name",
+      "region": "us-west-2",
+      "access_key": "your-access-key",
+      "secret_key": "your-secret-key",
+      "endpoint": "https://s3.us-west-2.amazonaws.com"
+    }
+  },
+  "database": {
+    "type": "sqlite",    // Options: "sqlite", "mariadb", etc.
+    "sqlite": {
+      "path": "./database.sqlite"    // For SQLite only
+    },
+    "mariadb": {
+      "host": "localhost",
+      "port": 3306,
+      "username": "your-username",
+      "password": "your-password",
+      "database_name": "your-database-name"
+    }
+  },
+  "logging": {
+    "log_level": "INFO",         // Options: TRACE, DEBUG, INFO, WARN, ERROR, FATAL
+    "log_file_path": "./logs/app.log",
+    "max_file_size_mb": 5,       // Max size of log file before rolling
+    "max_files": 3               // Number of backup log files to retain
+  },
+  "service": {
+    "port": 8000,
+    "threads": 4                 // Number of threads for the OATPP server
+  }
+}
