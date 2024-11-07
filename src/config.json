@@ -1,0 +1,18 @@
+{
+  "logging": {
+    "level": "info",
+    "log_file": "application.log"
+  },
+  "s3_uploader": {
+    "region": "us-east-1",
+    "max_retries": 3,
+    "retry_delay_seconds": 5,
+    "max_concurrent_uploads": 4
+  },
+  "ffmpeg_worker": {
+    "max_processes": 3,
+    "retry_count": 2,
+    "retry_delay_seconds": 5,
+    "ffmpeg_path": "/usr/local/bin/ffmpeg"
+  }
+}
