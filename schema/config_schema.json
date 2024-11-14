@@ -1,0 +1,488 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Video Processing Pipeline Configuration",
+  "type": "object",
+  "required": [
+    "common_settings",
+    "storage",
+    "input",
+    "filter_complex",
+    "encoding",
+    "adaptive_streaming",
+    "output",
+    "packager",
+    "logging",
+    "thumbnail_generation",
+    "pre_processing",
+    "post_processing",
+    "cdn_distribution",
+    "service_settings",
+    "common_variables"
+  ],
+  "properties": {
+    "common_settings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "video", "audio", "subtitles", "drm"],
+        "properties": {
+          "id": { "type": "string" },
+          "video": {
+            "type": "object",
+            "required": ["codec", "preset", "profile", "level", "keyint", "min_keyint", "sc_threshold", "refs", "bframes", "idr_frame_interval", "scene_detection", "pixel_format", "forced_keyframes"],
+            "properties": {
+              "codec": { "type": "string" },
+              "preset": { "type": "string" },
+              "profile": { "type": "string" },
+              "level": { "type": "string" },
+              "keyint": { "type": "integer" },
+              "min_keyint": { "type": "integer" },
+              "sc_threshold": { "type": "integer" },
+              "refs": { "type": "integer" },
+              "bframes": { "type": "integer" },
+              "idr_frame_interval": { "type": "integer" },
+              "scene_detection": { "type": "boolean" },
+              "pixel_format": { "type": "string" },
+              "forced_keyframes": { "type": "string" }
+            }
+          },
+          "audio": {
+            "type": "object",
+            "required": ["codec", "bitrate", "channels", "sample_rate", "compression_level", "filter"],
+            "properties": {
+              "codec": { "type": "string" },
+              "bitrate": { "type": "string" },
+              "channels": { "type": "integer" },
+              "sample_rate": { "type": "integer" },
+              "compression_level": { "type": "integer" },
+              "filter": { "type": "string" }
+            }
+          },
+          "subtitles": {
+            "type": "object",
+            "required": ["default_language", "supported_languages", "burn_in"],
+            "properties": {
+              "default_language": { "type": "string" },
+              "supported_languages": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "burn_in": { "type": "boolean" }
+            }
+          },
+          "drm": {
+            "type": "object",
+            "required": ["protection_scheme", "key_server_url", "key_id", "content_key", "iv", "pssh", "widevine", "playready", "fairplay"],
+            "properties": {
+              "protection_scheme": { "type": "string" },
+              "key_server_url": { "type": "string" },
+              "key_id": { "type": "string" },
+              "content_key": { "type": "string" },
+              "iv": { "type": "string" },
+              "pssh": { "type": "string" },
+              "widevine": {
+                "type": "object",
+                "required": ["signer", "aes_signing_key", "aes_signing_iv"],
+                "properties": {
+                  "signer": { "type": "string" },
+                  "aes_signing_key": { "type": "string" },
+                  "aes_signing_iv": { "type": "string" }
+                }
+              },
+              "playready": {
+                "type": "object",
+                "required": ["la_url", "custom_data"],
+                "properties": {
+                  "la_url": { "type": "string" },
+                  "custom_data": { "type": "string" }
+                }
+              },
+              "fairplay": {
+                "type": "object",
+                "required": ["key_uri", "certificate_file"],
+                "properties": {
+                  "key_uri": { "type": "string" },
+                  "certificate_file": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "required": ["input", "output"],
+      "properties": {
+        "input": {
+          "type": "object",
+          "required": ["provider", "path", "credentials"],
+          "properties": {
+            "provider": { "type": "string" },
+            "path": { "type": "string" },
+            "credentials": {
+              "type": "object",
+              "required": ["secret_id"],
+              "properties": {
+                "secret_id": { "type": "string" }
+              }
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "required": ["provider", "base_path", "credentials"],
+          "properties": {
+            "provider": { "type": "string" },
+            "base_path": { "type": "string" },
+            "credentials": {
+              "type": "object",
+              "required": ["secret_id"],
+              "properties": {
+                "secret_id": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["source", "start_time", "duration", "options"],
+      "properties": {
+        "source": { "type": "string" },
+        "start_time": { "type": ["integer", "null"] },
+        "duration": { "type": ["integer", "null"] },
+        "options": {
+          "type": "object",
+          "required": ["framerate", "pixel_format", "thread_count", "deinterlace", "audio_stream_index", "video_stream_index", "hwaccel", "fast_seek", "timestamp_correction"],
+          "properties": {
+            "framerate": { "type": "integer" },
+            "pixel_format": { "type": "string" },
+            "thread_count": { "type": "integer" },
+            "deinterlace": { "type": "boolean" },
+            "audio_stream_index": { "type": "integer" },
+            "video_stream_index": { "type": "integer" },
+            "hwaccel": { "type": "string" },
+            "fast_seek": { "type": "boolean" },
+            "timestamp_correction": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "filter_complex": {
+      "type": "object",
+      "required": ["chains", "final_output"],
+      "properties": {
+        "chains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "params", "inputs", "outputs"],
+            "properties": {
+              "type": { "type": "string" },
+              "params": { "type": "object" },
+              "inputs": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "outputs": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "final_output": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "encoding": {
+      "type": "object",
+      "required": ["profiles"],
+      "properties": {
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["profile_name", "common_settings_id", "filter_chain", "bitrate_profile"],
+            "properties": {
+              "profile_name": { "type": "string" },
+              "common_settings_id": { "type": "string" },
+              "filter_chain": { "type": "string" },
+              "bitrate_profile": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "adaptive_streaming": {
+      "type": "object",
+      "required": ["enabled", "profiles"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["resolution", "bitrate", "maxrate", "bufsize", "encoding_profile", "filter_chain"],
+            "properties": {
+              "resolution": { "type": "string" },
+              "bitrate": { "type": "string" },
+              "maxrate": { "type": "string" },
+              "bufsize": { "type": "string" },
+              "encoding_profile": { "type": "string" },
+              "filter_chain": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["formats", "base_path", "packages", "container_options", "metadata"],
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "base_path": { "type": "string" },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["format", "output_path", "playlist_name", "segment_template", "master_playlist_output"],
+            "properties": {
+              "format": { "type": "string" },
+              "output_path": { "type": "string" },
+              "playlist_name": { "type": "string" },
+              "segment_template": { "type": "string" },
+              "master_playlist_output": { "type": "string" }
+            }
+          }
+        },
+        "container_options": {
+          "type": "object",
+          "required": ["movflags", "muxrate", "frag_duration", "frag_size"],
+          "properties": {
+            "movflags": { "type": "string" },
+            "muxrate": { "type": "string" },
+            "frag_duration": { "type": "integer" },
+            "frag_size": { "type": "integer" }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "required": ["title", "author", "description", "copyright"],
+          "properties": {
+            "title": { "type": "string" },
+            "author": { "type": "string" },
+            "description": { "type": "string" },
+            "copyright": { "type": "string" }
+          }
+        }
+      }
+    },
+    "packager": {
+      "type": "object",
+      "required": ["enabled", "segment_duration", "hls", "dash", "encryption"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "segment_duration": { "type": "integer" },
+        "hls": {
+          "type": "object",
+          "required": ["master_playlist_output", "segment_template", "playlist_type", "playlist_name", "include_iframe", "iframe_playlist_name"],
+          "properties": {
+            "master_playlist_output": { "type": "string" },
+            "segment_template": { "type": "string" },
+            "playlist_type": { "type": "string" },
+            "playlist_name": { "type": "string" },
+            "include_iframe": { "type": "boolean" },
+            "iframe_playlist_name": { "type": "string" }
+          }
+        },
+        "dash": {
+          "type": "object",
+          "required": ["mpd_output", "segment_template", "init_segment", "min_buffer_time", "suggested_presentation_delay", "segment_duration", "low_latency_mode"],
+          "properties": {
+            "mpd_output": { "type": "string" },
+            "segment_template": { "type": "string" },
+            "init_segment": { "type": "string" },
+            "min_buffer_time": { "type": "integer" },
+            "suggested_presentation_delay": { "type": "integer" },
+            "segment_duration": { "type": "integer" },
+            "low_latency_mode": { "type": "boolean" }
+          }
+        },
+        "encryption": {
+          "type": "object",
+          "required": ["enabled", "protection_scheme", "key_server_url", "key_id", "content_key", "iv", "pssh", "drm"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "protection_scheme": { "type": "string" },
+            "key_server_url": { "type": "string" },
+            "key_id": { "type": "string" },
+            "content_key": { "type": "string" },
+            "iv": { "type": "string" },
+            "pssh": { "type": "string" },
+            "drm": { "type": "string" }
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "required": ["enabled", "log_level", "log_storage", "format"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "log_level": { "type": "string" },
+        "log_storage": {
+          "type": "object",
+          "required": ["provider", "path", "credentials"],
+          "properties": {
+            "provider": { "type": "string" },
+            "path": { "type": "string" },
+            "credentials": {
+              "type": "object",
+              "required": ["secret_id"],
+              "properties": {
+                "secret_id": { "type": "string" }
+              }
+            }
+          }
+        },
+        "format": { "type": "string" }
+      }
+    },
+    "thumbnail_generation": {
+      "type": "object",
+      "required": ["enabled", "interval", "dimensions", "output_path"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "interval": { "type": "integer" },
+        "dimensions": {
+          "type": "object",
+          "required": ["width", "height"],
+          "properties": {
+            "width": { "type": "integer" },
+            "height": { "type": "integer" }
+          }
+        },
+        "output_path": { "type": "string" }
+      }
+    },
+    "pre_processing": {
+      "type": "object",
+      "required": ["enabled", "operations"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "params"],
+            "properties": {
+              "type": { "type": "string" },
+              "params": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    "post_processing": {
+      "type": "object",
+      "required": ["enabled", "operations", "auth_token"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "provider", "url", "auth_token"],
+            "properties": {
+              "type": { "type": "string" },
+              "provider": { "type": "string" },
+              "url": { "type": "string" },
+              "auth_token": { "type": "string" }
+            }
+          }
+        },
+        "auth_token": { "type": "string" }
+      }
+    },
+    "cdn_distribution": {
+      "type": "object",
+      "required": ["provider", "api_endpoint", "auth_token", "options"],
+      "properties": {
+        "provider": { "type": "string" },
+        "api_endpoint": { "type": "string" },
+        "auth_token": { "type": "string" },
+        "options": {
+          "type": "object",
+          "required": ["cache_control", "cache_invalidation"],
+          "properties": {
+            "cache_control": { "type": "string" },
+            "cache_invalidation": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "service_settings": {
+      "type": "object",
+      "required": ["run_async", "priority", "callback_url", "retries", "timeout", "retry_delay", "error_handling"],
+      "properties": {
+        "run_async": { "type": "boolean" },
+        "priority": { "type": "string" },
+        "callback_url": { "type": "string" },
+        "retries": { "type": "integer" },
+        "timeout": { "type": "integer" },
+        "retry_delay": { "type": "integer" },
+        "error_handling": {
+          "type": "object",
+          "required": ["on_fail", "max_retries", "log_level", "alert"],
+          "properties": {
+            "on_fail": { "type": "string" },
+            "max_retries": { "type": "integer" },
+            "log_level": { "type": "string" },
+            "alert": {
+              "type": "object",
+              "required": ["enabled", "alert_on", "email", "slack_webhook"],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "alert_on": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "email": { "type": "string" },
+                "slack_webhook": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "common_variables": {
+      "type": "object",
+      "required": ["post_processing", "cdn_distribution"],
+      "properties": {
+        "post_processing": {
+          "type": "object",
+          "required": ["auth_token"],
+          "properties": {
+            "auth_token": { "type": "string" }
+          }
+        },
+        "cdn_distribution": {
+          "type": "object",
+          "required": ["auth_token"],
+          "properties": {
+            "auth_token": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

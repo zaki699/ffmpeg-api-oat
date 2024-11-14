@@ -1,0 +1,443 @@
+{
+  "common_settings": [
+    {
+      "id": "common_480p",
+      "video": {
+        "codec": "h264_nvenc",
+        "preset": "fast",
+        "profile": "high",
+        "level": "4.1",
+        "keyint": 60,
+        "min_keyint": 30,
+        "sc_threshold": 40,
+        "refs": 4,
+        "bframes": 3,
+        "idr_frame_interval": 1,
+        "scene_detection": true,
+        "pixel_format": "nv12",
+        "forced_keyframes": "expr:gte(t,n_forced*2)"
+      },
+      "audio": {
+        "codec": "aac",
+        "bitrate": "128k",
+        "channels": 2,
+        "sample_rate": 44100,
+        "compression_level": 2,
+        "filter": "loudnorm=I=-23:TP=-2.0"
+      },
+      "subtitles": {
+        "default_language": "en",
+        "supported_languages": ["en", "fr"],
+        "burn_in": false
+      },
+      "drm": {
+        "protection_scheme": "cbcs",
+        "key_server_url": "https://license-server.com/getkey",
+        "key_id": "abcd1234abcd1234abcd1234abcd1234",
+        "content_key": "abcd1234abcd1234abcd1234abcd1234",
+        "iv": "abcd1234abcd1234abcd1234abcd1234",
+        "pssh": "psshdata",
+        "widevine": {
+          "signer": "widevine_signer",
+          "aes_signing_key": "aes_signing_key",
+          "aes_signing_iv": "aes_signing_iv"
+        },
+        "playready": {
+          "la_url": "https://playready-license-server.com/authorize",
+          "custom_data": "playready_custom_data"
+        },
+        "fairplay": {
+          "key_uri": "skd://fairplay-server.com/getkey",
+          "certificate_file": "fairplay_cert.der"
+        }
+      }
+    },
+    {
+      "id": "common_720p",
+      "video": {
+        "codec": "h264_nvenc",
+        "preset": "medium",
+        "profile": "high",
+        "level": "4.2",
+        "keyint": 60,
+        "min_keyint": 30,
+        "sc_threshold": 40,
+        "refs": 4,
+        "bframes": 3,
+        "idr_frame_interval": 1,
+        "scene_detection": true,
+        "pixel_format": "nv12",
+        "forced_keyframes": "expr:gte(t,n_forced*2)"
+      },
+      "audio": {
+        "codec": "aac",
+        "bitrate": "192k",
+        "channels": 2,
+        "sample_rate": 48000,
+        "compression_level": 2,
+        "filter": "loudnorm=I=-23:TP=-2.0"
+      },
+      "subtitles": {
+        "default_language": "en",
+        "supported_languages": ["en", "es"],
+        "burn_in": false
+      },
+      "drm": {
+        "protection_scheme": "cbcs",
+        "key_server_url": "https://license-server.com/getkey",
+        "key_id": "efgh5678efgh5678efgh5678efgh5678",
+        "content_key": "efgh5678efgh5678efgh5678efgh5678",
+        "iv": "efgh5678efgh5678efgh5678efgh5678",
+        "pssh": "psshdata2",
+        "widevine": {
+          "signer": "widevine_signer_2",
+          "aes_signing_key": "aes_signing_key_2",
+          "aes_signing_iv": "aes_signing_iv_2"
+        },
+        "playready": {
+          "la_url": "https://playready-license-server.com/authorize",
+          "custom_data": "playready_custom_data_2"
+        },
+        "fairplay": {
+          "key_uri": "skd://fairplay-server.com/getkey",
+          "certificate_file": "fairplay_cert_2.der"
+        }
+      }
+    }
+    // Add more common_settings as needed
+  ],
+
+  "storage": {
+    "input": {
+      "provider": "s3",
+      "path": "s3://bucket-name/input_file.mp4",
+      "credentials": {
+        "secret_id": "aws_s3_input_credentials"
+      }
+    },
+    "output": {
+      "provider": "azure",
+      "base_path": "azure://container-name/output/",
+      "credentials": {
+        "secret_id": "azure_output_credentials"
+      }
+    }
+  },
+
+  "input": {
+    "source": "s3://bucket-name/input_file.mp4",
+    "start_time": 0,
+    "duration": null,
+    "options": {
+      "framerate": 30,
+      "pixel_format": "yuv420p",
+      "thread_count": 4,
+      "deinterlace": true,
+      "audio_stream_index": 1,
+      "video_stream_index": 0,
+      "hwaccel": "cuda",
+      "fast_seek": true,
+      "timestamp_correction": true
+    }
+  },
+
+  "filter_complex": {
+    "chains": [
+      // Example Filter Chain for 480p
+      {
+        "type": "scale",
+        "params": {
+          "width": "{{encoding_profiles.480p.video_settings.resolution_width}}",
+          "height": "{{encoding_profiles.480p.video_settings.resolution_height}}",
+          "flags": "bicubic"
+        },
+        "inputs": "[0:v]",
+        "outputs": "[scaled_480]"
+      },
+      {
+        "type": "overlay",
+        "params": {
+          "x": 10,
+          "y": 10
+        },
+        "inputs": ["[scaled_480]", "[logo:v]"],
+        "outputs": "[overlayed_480]"
+      },
+      {
+        "type": "drawtext",
+        "params": {
+          "text": "Sample Text",
+          "fontfile": "/path/to/font.ttf",
+          "fontsize": 18,
+          "fontcolor": "white",
+          "x": "(w-text_w)/2",
+          "y": "(h-text_h)/2"
+        },
+        "inputs": "[overlayed_480]",
+        "outputs": "[final_480]"
+      },
+      {
+        "type": "fps",
+        "params": {
+          "fps": 24
+        },
+        "inputs": "[final_480]",
+        "outputs": "[final_fps_480]"
+      },
+
+      // Example Filter Chain for 720p
+      {
+        "type": "scale",
+        "params": {
+          "width": "{{encoding_profiles.720p.video_settings.resolution_width}}",
+          "height": "{{encoding_profiles.720p.video_settings.resolution_height}}",
+          "flags": "bicubic"
+        },
+        "inputs": "[0:v]",
+        "outputs": "[scaled_720]"
+      },
+      {
+        "type": "overlay",
+        "params": {
+          "x": 20,
+          "y": 20
+        },
+        "inputs": ["[scaled_720]", "[logo:v]"],
+        "outputs": "[overlayed_720]"
+      },
+      {
+        "type": "drawtext",
+        "params": {
+          "text": "Sample Text",
+          "fontfile": "/path/to/font.ttf",
+          "fontsize": 24,
+          "fontcolor": "yellow",
+          "x": "(w-text_w)/2",
+          "y": "(h-text_h)/2"
+        },
+        "inputs": "[overlayed_720]",
+        "outputs": "[final_720]"
+      },
+      {
+        "type": "fps",
+        "params": {
+          "fps": 30
+        },
+        "inputs": "[final_720]",
+        "outputs": "[final_fps_720]"
+      }
+
+      // Add more filter chains as needed
+    ],
+    "final_output": {
+      "480p": "[final_fps_480]",
+      "720p": "[final_fps_720]"
+      // Add more resolutions as needed
+    }
+  },
+
+  "encoding": {
+    "profiles": [
+      {
+        "profile_name": "480p",
+        "common_settings_id": "common_480p",
+        "filter_chain": "480p",
+        "bitrate_profile": "480p"
+      },
+      {
+        "profile_name": "720p",
+        "common_settings_id": "common_720p",
+        "filter_chain": "720p",
+        "bitrate_profile": "720p"
+      }
+      // Add more profiles as needed
+    ]
+  },
+
+  "adaptive_streaming": {
+    "enabled": true,
+    "profiles": [
+      {
+        "resolution": "480p",
+        "bitrate": "{{encoding_profiles.480p.video_settings.bitrate}}",
+        "maxrate": "{{encoding_profiles.480p.video_settings.maxrate}}",
+        "bufsize": "{{encoding_profiles.480p.video_settings.bufsize}}",
+        "encoding_profile": "480p",
+        "filter_chain": "480p"
+      },
+      {
+        "resolution": "720p",
+        "bitrate": "{{encoding_profiles.720p.video_settings.bitrate}}",
+        "maxrate": "{{encoding_profiles.720p.video_settings.maxrate}}",
+        "bufsize": "{{encoding_profiles.720p.video_settings.bufsize}}",
+        "encoding_profile": "720p",
+        "filter_chain": "720p"
+      }
+      // Add more adaptive streaming profiles as needed
+    ]
+  },
+
+  "output": {
+    "formats": ["hls", "dash"],
+    "base_path": "azure://container-name/output/",
+    "packages": [
+      {
+        "format": "hls",
+        "output_path": "hls/",
+        "playlist_name": "playlist.m3u8",
+        "segment_template": "hls_segment_$Number$.ts",
+        "master_playlist_output": "master.m3u8"
+      },
+      {
+        "format": "dash",
+        "output_path": "dash/",
+        "mpd_output": "manifest.mpd",
+        "segment_template": "dash_segment_$Number$.m4s",
+        "init_segment": "init_segment.m4s"
+      }
+    ],
+    "container_options": {
+      "movflags": "+faststart",
+      "muxrate": "2000000",
+      "frag_duration": 100000,
+      "frag_size": 8192
+    },
+    "metadata": {
+      "title": "Sample Video",
+      "author": "Creator Name",
+      "description": "A sample video for testing.",
+      "copyright": "2024 My Company"
+    }
+  },
+
+  "packager": {
+    "enabled": true,
+    "segment_duration": 6,
+    "hls": {
+      "master_playlist_output": "azure://container-name/output/hls/master.m3u8",
+      "segment_template": "azure://container-name/output/hls/hls_segment_$Number$.ts",
+      "playlist_type": "VOD",
+      "playlist_name": "playlist.m3u8",
+      "include_iframe": true,
+      "iframe_playlist_name": "iframe_playlist.m3u8"
+    },
+    "dash": {
+      "mpd_output": "azure://container-name/output/dash/manifest.mpd",
+      "segment_template": "azure://container-name/output/dash/dash_segment_$Number$.m4s",
+      "init_segment": "azure://container-name/output/dash/init_segment.m4s",
+      "min_buffer_time": 3,
+      "suggested_presentation_delay": 6,
+      "segment_duration": 6,
+      "low_latency_mode": true
+    },
+    "encryption": {
+      "enabled": true,
+      "protection_scheme": "{{encoding_profiles.480p.drm_settings.protection_scheme}}",
+      "key_server_url": "{{encoding_profiles.480p.drm_settings.key_server_url}}",
+      "key_id": "{{encoding_profiles.480p.drm_settings.key_id}}",
+      "content_key": "{{encoding_profiles.480p.drm_settings.content_key}}",
+      "iv": "{{encoding_profiles.480p.drm_settings.iv}}",
+      "pssh": "{{encoding_profiles.480p.drm_settings.pssh}}",
+      "drm": "{{encoding_profiles.480p.drm_settings}}"
+    }
+  },
+
+  "logging": {
+    "enabled": true,
+    "log_level": "info",
+    "log_storage": {
+      "provider": "s3",
+      "path": "s3://bucket-name/logs/",
+      "credentials": {
+        "secret_id": "aws_s3_log_credentials"
+      }
+    },
+    "format": "json"
+  },
+
+  "thumbnail_generation": {
+    "enabled": true,
+    "interval": 10,
+    "dimensions": {
+      "width": 320,
+      "height": 180
+    },
+    "output_path": "s3://bucket-name/thumbnails/"
+  },
+
+  "pre_processing": {
+    "enabled": true,
+    "operations": [
+      {
+        "type": "validate_format",
+        "params": {
+          "accepted_formats": ["mp4", "mkv"]
+        }
+      },
+      {
+        "type": "check_quality",
+        "params": {
+          "min_bitrate": "500k",
+          "min_resolution": "480p"
+        }
+      }
+    ]
+  },
+
+  "post_processing": {
+    "enabled": true,
+    "operations": [
+      {
+        "type": "quality_analysis",
+        "metrics": ["VMAF", "PSNR", "SSIM"]
+      },
+      {
+        "type": "upload_to_cdn",
+        "provider": "custom_cdn",
+        "url": "https://cdn.example.com/upload",
+        "auth_token": "{{common_variables.post_processing.auth_token}}"
+      }
+    ],
+    "auth_token": "YOUR_SECURE_POST_PROCESSING_AUTH_TOKEN"
+  },
+
+  "cdn_distribution": {
+    "provider": "cloudflare",
+    "api_endpoint": "https://api.cloudflare.com/client/v4/zones/YOUR_ZONE_ID/purge_cache",
+    "auth_token": "{{common_variables.cdn_distribution.auth_token}}",
+    "options": {
+      "cache_control": "public, max-age=31536000",
+      "cache_invalidation": true
+    },
+    "auth_token": "YOUR_SECURE_CDN_DISTRIBUTION_AUTH_TOKEN"
+  },
+
+  "service_settings": {
+    "run_async": true,
+    "priority": "normal",
+    "callback_url": "https://example.com/callback",
+    "retries": 3,
+    "timeout": 3600,
+    "retry_delay": 300,
+    "error_handling": {
+      "on_fail": "retry",
+      "max_retries": 5,
+      "log_level": "info",
+      "alert": {
+        "enabled": true,
+        "alert_on": ["error", "retry_limit_exceeded"],
+        "email": "admin@example.com",
+        "slack_webhook": "https://hooks.slack.com/services/your/slack/webhook"
+      }
+    }
+  },
+
+  "common_variables": {
+    "post_processing": {
+      "auth_token": "YOUR_SECURE_POST_PROCESSING_AUTH_TOKEN"
+    },
+    "cdn_distribution": {
+      "auth_token": "YOUR_SECURE_CDN_DISTRIBUTION_AUTH_TOKEN"
+    }
+  }
+}

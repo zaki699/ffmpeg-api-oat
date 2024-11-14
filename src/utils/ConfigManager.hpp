@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <filesystem>
 #include "Logger.hpp"
+#include "logger/LoggerMacros.hpp"
 
 using json = nlohmann::json;
 
@@ -22,7 +23,7 @@ public:
 
         // Check if the file exists
         if (!std::filesystem::exists(configFilePath)) {
-            Logger::getInstance().error("Configuration file {} does not exist.", configFilePath);
+            LOG_ERROR("Configuration file %s does not exist.", configFilePath);
             throw std::runtime_error("Configuration file not found.");
         }
 
@@ -32,9 +33,10 @@ public:
                 throw std::runtime_error("Failed to open configuration file.");
             }
             configFile >> config;
-            Logger::getInstance().info("Configuration loaded successfully from {}", configFilePath);
+            this->configFilePath = configFilePath;
+            LOG_INFO("Configuration loaded successfully from %s", configFilePath);
         } catch (const std::exception& e) {
-            Logger::getInstance().error("Error loading configuration: {}", e.what());
+            LOG_ERROR("Error loading configuration: %s", e.what());
             throw;
         }
     }
@@ -44,16 +46,17 @@ public:
     T get(const std::string& key, const T& defaultValue = T{}) const {
         std::lock_guard<std::mutex> lock(configMutex);
 
-        // Check if key exists and return value or default
         if (config.contains(key)) {
             try {
-                Logger::getInstance().debug("Retrieved configuration for key: {}", key);
+                LOG_DEBUG("Retrieved configuration for key: %s", key);
                 return config.at(key).get<T>();
+            } catch (const nlohmann::json::type_error& e) {
+                LOG_ERROR("Type mismatch for key '%s': %s", key, e.what());
             } catch (const std::exception& e) {
-                Logger::getInstance().error("Error retrieving config key '{}': {}", key, e.what());
+                LOG_ERROR("Error retrieving config key '%s': %s", key, e.what());
             }
         } else {
-            Logger::getInstance().warn("Config key '{}' not found. Using default.", key);
+            LOG_WARN("Config key '%s' not found. Using default.", key);
         }
         return defaultValue;
     }
@@ -63,13 +66,35 @@ public:
     void update(const std::string& key, const T& value) {
         std::lock_guard<std::mutex> lock(configMutex);
         config[key] = value;
-        Logger::getInstance().info("Configuration updated: {} -> {}", key, value);
+        LOG_INFO("Configuration updated: %s -> %s", key, value);
+        saveConfig();
+    }
+
+    // Save the current configuration to file
+    void saveConfig() const {
+        if (configFilePath.empty()) {
+            LOG_WARN("Configuration file path is empty; cannot save.");
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(configMutex);
+        try {
+            std::ofstream configFile(configFilePath);
+            if (!configFile.is_open()) {
+                throw std::runtime_error("Failed to open configuration file for writing.");
+            }
+            configFile << config.dump(4); // Pretty print with 4 spaces
+            LOG_INFO("Configuration saved to %s", configFilePath);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Error saving configuration: %s", e.what());
+        }
     }
 
 private:
     ConfigManager() = default;
     ~ConfigManager() = default;
 
-    json config;
     mutable std::mutex configMutex;
+    json config;
+    std::string configFilePath; // Store the path for saving updated configs
 };

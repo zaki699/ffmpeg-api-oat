@@ -1,12 +1,14 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include <iostream>
-#include <fstream>
+#include <absl/log/log.h>
+#include <absl/log/log_sink.h>
+#include <absl/strings/str_cat.h>
+#include <absl/log/log_sink_registry.h>
 #include <string>
-#include <mutex>
 #include <memory>
-#include <ctime>
+#include <fstream>
+#include <mutex>
 
 enum class LogLevel {
     TRACE,
@@ -19,6 +21,10 @@ enum class LogLevel {
 
 class Logger {
 public:
+    // Disable copy and assignment
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
+
     // Singleton instance
     static Logger& getInstance() {
         static Logger instance;
@@ -28,78 +34,95 @@ public:
     // Set log file path (Optional)
     void setLogFilePath(const std::string& filePath) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (logFile_.is_open()) {
-            logFile_.close();
+        if (!fileSink_ || filePath != logFilePath_) {
+            if (fileSink_) {
+                absl::RemoveLogSink(fileSink_.get());
+            }
+            fileSink_ = std::make_unique<FileSink>(filePath);
+            absl::AddLogSink(fileSink_.get());
+            logFilePath_ = filePath;
         }
-        logFile_.open(filePath, std::ios::app);
     }
 
     // Set the minimum log level
-    void setLogLevel(LogLevel level) {
+    void setLogLevel(const LogLevel level) {
         minLogLevel_ = level;
     }
 
     // Log a message with a specific level
-    void log(LogLevel level, const std::string& message) {
+    template <typename... Args>
+    void log(const LogLevel level, const Args&... args) {
         if (level < minLogLevel_) return;
 
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::string logMessage = formatLogMessage(level, message);
-
-        // Write to console
-        std::cout << logMessage << std::endl;
-
-        // Write to log file if configured
-        if (logFile_.is_open()) {
-            logFile_ << logMessage << std::endl;
+        const std::string message = absl::StrCat(args...);
+        switch (level) {
+            case LogLevel::TRACE:
+                LOG(INFO) << "[TRACE] " << message;
+                break;
+            case LogLevel::DEBUG:
+                LOG(INFO) << "[DEBUG] " << message;
+                break;
+            case LogLevel::INFO:
+                LOG(INFO) << "[INFO] " << message;
+                break;
+            case LogLevel::WARN:
+                LOG(WARNING) << "[WARN] " << message;
+                break;
+            case LogLevel::ERROR:
+                LOG(ERROR) << "[ERROR] " << message;
+                break;
+            case LogLevel::FATAL:
+                LOG(FATAL) << "[FATAL] " << message;
+                break;
         }
     }
 
     // Convenience methods for different log levels
-    void trace(const std::string& message) { log(LogLevel::TRACE, message); }
-    void debug(const std::string& message) { log(LogLevel::DEBUG, message); }
-    void info(const std::string& message) { log(LogLevel::INFO, message); }
-    void warn(const std::string& message) { log(LogLevel::WARN, message); }
-    void error(const std::string& message) { log(LogLevel::ERROR, message); }
-    void fatal(const std::string& message) { log(LogLevel::FATAL, message); }
+    template <typename... Args>
+    void trace(const Args&... args) { log(LogLevel::TRACE, args...); }
+    template <typename... Args>
+    void debug(const Args&... args) { log(LogLevel::DEBUG, args...); }
+    template <typename... Args>
+    void info(const Args&... args) { log(LogLevel::INFO, args...); }
+    template <typename... Args>
+    void warn(const Args&... args) { log(LogLevel::WARN, args...); }
+    template <typename... Args>
+    void error(const Args&... args) { log(LogLevel::ERROR, args...); }
+    template <typename... Args>
+    void fatal(const Args&... args) { log(LogLevel::FATAL, args...); }
 
 private:
-    LogLevel minLogLevel_ = LogLevel::INFO;      // Default log level
-    std::ofstream logFile_;                      // Log file stream
-    std::mutex mutex_;                           // Mutex for thread safety
+    LogLevel minLogLevel_ = LogLevel::INFO;
+    std::string logFilePath_;
+    std::unique_ptr<absl::LogSink> fileSink_;
+    std::mutex mutex_; // Ensure thread-safe log file handling
 
     Logger() = default;
-    ~Logger() {
-        if (logFile_.is_open()) {
-            logFile_.close();
-        }
-    }
 
-    // Disable copy and assignment
-    Logger(const Logger&) = delete;
-    Logger& operator=(const Logger&) = delete;
-
-    // Helper function to format log message with timestamp and level
-    std::string formatLogMessage(LogLevel level, const std::string& message) {
-        const char* levelStr;
-        switch (level) {
-            case LogLevel::TRACE: levelStr = "TRACE"; break;
-            case LogLevel::DEBUG: levelStr = "DEBUG"; break;
-            case LogLevel::INFO: levelStr = "INFO"; break;
-            case LogLevel::WARN: levelStr = "WARN"; break;
-            case LogLevel::ERROR: levelStr = "ERROR"; break;
-            case LogLevel::FATAL: levelStr = "FATAL"; break;
-            default: levelStr = "UNKNOWN"; break;
+    class FileSink final : public absl::LogSink {
+    public:
+        explicit FileSink(const std::string& filePath) {
+            fileStream_.open(filePath, std::ios::app);
+            if (!fileStream_) {
+                throw std::runtime_error("Unable to open log file: " + filePath);
+            }
         }
 
-        // Get current time
-        std::time_t now = std::time(nullptr);
-        char timeStr[20];
-        std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+        void Send(const absl::LogEntry& entry) override {
+            if (fileStream_.is_open()) {
+                fileStream_ << entry.text_message() << std::endl;
+            }
+        }
 
-        // Format: [time] [level] message
-        return std::string("[") + timeStr + "] [" + levelStr + "] " + message;
-    }
+        ~FileSink() override {
+            if (fileStream_.is_open()) {
+                fileStream_.close();
+            }
+        }
+
+    private:
+        std::ofstream fileStream_;
+    };
 };
 
 #endif // LOGGER_HPP
